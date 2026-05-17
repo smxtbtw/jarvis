@@ -217,7 +217,7 @@
     <span></span><span></span><span></span><span></span>
   </div>
 
-  <div id="mic-hint">🎙 ARC REACTOR pe tap karo aur bolo</div>
+  <div id="mic-hint">🎙 "Hey JARVIS" bolo ya ARC REACTOR tap karo</div>
 
   <div class="chat-panel">
     <div id="chat-log">
@@ -351,6 +351,53 @@ function stopListening() {
 micBtn.onclick  = () => isListening ? stopListening() : startListening();
 arcCore.onclick = () => isListening ? stopListening() : startListening();
 
+// ── WAKE WORD + AUTO LISTEN ──
+let autoListen = true;
+let wakeWordMode = true;
+
+function startWakeWordLoop() {
+  if (!autoListen) return;
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) return;
+
+  const wakeRecog = new SR();
+  wakeRecog.lang = 'hi-IN';
+  wakeRecog.continuous = false;
+  wakeRecog.interimResults = false;
+
+  wakeRecog.onresult = (e) => {
+    const said = e.results[0][0].transcript.toLowerCase();
+    // Wake words
+    if (said.includes('jarvis') || said.includes('जार्विस') || said.includes('hey jarvis')) {
+      // Wake word detected — now listen for command
+      speak('Haan Sir, boliye.');
+      setTimeout(() => startListening(), 1200);
+    } else {
+      // Not a wake word — restart loop
+      setTimeout(() => startWakeWordLoop(), 500);
+    }
+  };
+
+  wakeRecog.onerror = () => {
+    setTimeout(() => startWakeWordLoop(), 2000);
+  };
+  wakeRecog.onend = () => {
+    if (!isListening) setTimeout(() => startWakeWordLoop(), 500);
+  };
+
+  try { wakeRecog.start(); } catch(e) {}
+}
+
+// After JARVIS speaks, auto-listen again
+const origStopListen = stopListening;
+function stopListeningAndResume() {
+  origStopListen();
+  // After response is spoken, restart wake word loop
+  setTimeout(() => {
+    if (!isListening) startWakeWordLoop();
+  }, 500);
+}
+
 // ── CHAT UI ──
 function addMsg(role, text) {
   const d = document.createElement('div');
@@ -453,8 +500,11 @@ async function sendMessage() {
 sendBtn.onclick = sendMessage;
 userInput.onkeydown = e => { if (e.key === 'Enter') sendMessage(); };
 
-// Greeting after voices load
-setTimeout(() => speak('Good day Sir. J.A.R.V.I.S. online and ready for your command.'), 1500);
+// Greeting + start wake word loop
+setTimeout(() => {
+  speak('Good day Sir. J.A.R.V.I.S. online hai. "Hey JARVIS" bolkar mujhe jagayein.');
+  setTimeout(() => startWakeWordLoop(), 3000);
+}, 1500);
 </script>tml lang="en">
 <head>
 <meta charset="UTF-8">
@@ -673,7 +723,7 @@ setTimeout(() => speak('Good day Sir. J.A.R.V.I.S. online and ready for your com
     <span></span><span></span><span></span><span></span>
   </div>
 
-  <div id="mic-hint">🎙 ARC REACTOR pe tap karo aur bolo</div>
+  <div id="mic-hint">🎙 "Hey JARVIS" bolo ya ARC REACTOR tap karo</div>
 
   <div class="chat-panel">
     <div id="chat-log">
