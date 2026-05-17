@@ -1,0 +1,864 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>J.A.R.V.I.S</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;400;600&display=swap');
+  :root {
+    --arc: #00d4ff; --arc-dim: #0088aa; --arc-glow: rgba(0,212,255,0.4);
+    --gold: #ffa500; --red: #ff3a3a; --bg: #020a10;
+    --panel: rgba(0,212,255,0.04); --border: rgba(0,212,255,0.2);
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    background: var(--bg); color: var(--arc);
+    font-family: 'Rajdhani', sans-serif;
+    min-height: 100vh; overflow-x: hidden;
+    display: flex; flex-direction: column; align-items: center;
+  }
+  body::before {
+    content:''; position:fixed; inset:0;
+    background-image: linear-gradient(rgba(0,212,255,0.03) 1px,transparent 1px),
+      linear-gradient(90deg,rgba(0,212,255,0.03) 1px,transparent 1px);
+    background-size:40px 40px; pointer-events:none; z-index:0;
+  }
+  body::after {
+    content:''; position:fixed; top:-200px; left:0; right:0; height:200px;
+    background:linear-gradient(transparent,rgba(0,212,255,0.03),transparent);
+    animation:scan 6s linear infinite; pointer-events:none; z-index:0;
+  }
+  @keyframes scan { 0%{top:-200px} 100%{top:100vh} }
+  .container {
+    position:relative; z-index:1; width:100%; max-width:800px;
+    padding:20px; display:flex; flex-direction:column; align-items:center; gap:20px;
+  }
+  header { text-align:center; padding-top:20px; }
+  .system-tag {
+    font-family:'Orbitron',monospace; font-size:10px; letter-spacing:6px;
+    color:var(--arc-dim); margin-bottom:8px;
+  }
+  h1 {
+    font-family:'Orbitron',monospace; font-size:clamp(32px,8vw,64px);
+    font-weight:900; letter-spacing:12px;
+    text-shadow:0 0 30px var(--arc),0 0 60px var(--arc-glow);
+    animation:pulse-title 4s ease-in-out infinite;
+  }
+  @keyframes pulse-title {
+    0%,100%{text-shadow:0 0 30px var(--arc),0 0 60px var(--arc-glow)}
+    50%{text-shadow:0 0 50px var(--arc),0 0 100px var(--arc-glow),0 0 150px rgba(0,212,255,0.2)}
+  }
+  .subtitle { font-size:11px; letter-spacing:4px; color:var(--arc-dim); margin-top:6px; }
+  .arc-wrapper { position:relative; width:160px; height:160px; cursor:pointer; }
+  .arc-ring {
+    position:absolute; inset:0; border-radius:50%;
+    border:1px solid var(--border); animation:rotate linear infinite;
+  }
+  .arc-ring:nth-child(1){animation-duration:8s;border-color:rgba(0,212,255,0.3)}
+  .arc-ring:nth-child(2){inset:10px;animation-duration:5s;animation-direction:reverse;border-color:rgba(0,212,255,0.2);border-style:dashed}
+  .arc-ring:nth-child(3){inset:22px;animation-duration:12s;border-color:rgba(255,165,0,0.3)}
+  @keyframes rotate{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+  .arc-core {
+    position:absolute; inset:35px; border-radius:50%;
+    background:radial-gradient(circle at 40% 35%,#80eeff,#00aacc 40%,#003344);
+    box-shadow:0 0 20px var(--arc),0 0 40px var(--arc-glow),inset 0 0 20px rgba(0,0,0,0.5);
+    display:flex; align-items:center; justify-content:center; transition:all 0.3s;
+  }
+  .arc-core svg { width:40px; height:40px; fill:rgba(255,255,255,0.9); }
+  .arc-core.listening {
+    box-shadow:0 0 40px var(--red),0 0 80px rgba(255,58,58,0.4),inset 0 0 20px rgba(0,0,0,0.3);
+    animation:pulse-red 1s ease-in-out infinite;
+  }
+  .arc-core.speaking {
+    animation:arc-speak 0.5s ease-in-out infinite;
+  }
+  @keyframes pulse-red {
+    0%,100%{box-shadow:0 0 40px var(--red),0 0 80px rgba(255,58,58,0.4)}
+    50%{box-shadow:0 0 70px var(--red),0 0 120px rgba(255,58,58,0.6)}
+  }
+  @keyframes arc-speak {
+    0%,100%{box-shadow:0 0 20px var(--arc),0 0 40px var(--arc-glow)}
+    50%{box-shadow:0 0 60px var(--arc),0 0 120px var(--arc-glow),0 0 180px rgba(0,212,255,0.2)}
+  }
+  .status-bar {
+    display:flex; gap:20px; font-family:'Orbitron',monospace;
+    font-size:9px; letter-spacing:3px; color:var(--arc-dim);
+    flex-wrap:wrap; justify-content:center;
+  }
+  .status-item { display:flex; align-items:center; gap:6px; }
+  .status-dot {
+    width:6px; height:6px; border-radius:50%;
+    background:var(--arc); box-shadow:0 0 6px var(--arc);
+    animation:blink 2s infinite;
+  }
+  .status-dot.gold{background:var(--gold);box-shadow:0 0 6px var(--gold);animation-delay:.5s}
+  .status-dot.red{background:var(--red);box-shadow:0 0 6px var(--red);animation-delay:1s}
+  @keyframes blink{0%,90%,100%{opacity:1}95%{opacity:.3}}
+  #waveform { display:none; gap:3px; align-items:center; justify-content:center; height:30px; }
+  #waveform.active { display:flex; }
+  #waveform span {
+    width:3px; border-radius:2px; background:var(--red);
+    box-shadow:0 0 4px var(--red); animation:wave .8s ease-in-out infinite;
+  }
+  @keyframes wave{0%,100%{height:4px}50%{height:20px}}
+  #waveform span:nth-child(1){animation-delay:0s}
+  #waveform span:nth-child(2){animation-delay:.1s}
+  #waveform span:nth-child(3){animation-delay:.2s}
+  #waveform span:nth-child(4){animation-delay:.3s}
+  #waveform span:nth-child(5){animation-delay:.4s}
+  #waveform span:nth-child(6){animation-delay:.3s}
+  #waveform span:nth-child(7){animation-delay:.2s}
+  #waveform span:nth-child(8){animation-delay:.1s}
+  .chat-panel {
+    width:100%; background:var(--panel); border:1px solid var(--border);
+    border-radius:4px; position:relative; overflow:hidden;
+  }
+  .chat-panel::before {
+    content:'COMMUNICATION LOG'; position:absolute; top:10px; left:15px;
+    font-family:'Orbitron',monospace; font-size:8px; letter-spacing:4px; color:var(--arc-dim);
+  }
+  .chat-panel::after {
+    content:''; position:absolute; top:0; left:0; right:0; height:2px;
+    background:linear-gradient(90deg,transparent,var(--arc),transparent);
+  }
+  #chat-log {
+    height:320px; overflow-y:auto; padding:40px 15px 15px;
+    display:flex; flex-direction:column; gap:12px;
+    scrollbar-width:thin; scrollbar-color:var(--arc-dim) transparent;
+  }
+  .msg { display:flex; gap:10px; animation:fadeIn .3s ease; }
+  @keyframes fadeIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+  .msg-label {
+    font-family:'Orbitron',monospace; font-size:8px; letter-spacing:2px;
+    white-space:nowrap; padding-top:3px; min-width:55px;
+  }
+  .msg.user .msg-label{color:var(--gold)}
+  .msg.jarvis .msg-label{color:var(--arc)}
+  .msg-text {
+    font-size:14px; line-height:1.5; color:rgba(255,255,255,0.85);
+    background:rgba(0,0,0,0.2); padding:8px 12px; border-radius:2px;
+    border-left:2px solid; flex:1;
+  }
+  .msg.user .msg-text{border-color:var(--gold)}
+  .msg.jarvis .msg-text{border-color:var(--arc)}
+  .thinking { display:flex; gap:4px; align-items:center; padding:4px 0; }
+  .thinking span {
+    width:6px; height:6px; border-radius:50%; background:var(--arc);
+    animation:think 1.2s ease-in-out infinite;
+  }
+  .thinking span:nth-child(2){animation-delay:.2s}
+  .thinking span:nth-child(3){animation-delay:.4s}
+  @keyframes think{0%,60%,100%{transform:translateY(0);opacity:.4}30%{transform:translateY(-6px);opacity:1}}
+  .input-section { width:100%; display:flex; gap:10px; align-items:stretch; }
+  .input-wrapper { flex:1; position:relative; }
+  #user-input {
+    width:100%; background:var(--panel); border:1px solid var(--border);
+    border-radius:4px; color:white; font-family:'Rajdhani',sans-serif;
+    font-size:15px; padding:14px 15px 14px 40px; outline:none; transition:border-color .3s;
+  }
+  #user-input:focus { border-color:var(--arc); box-shadow:0 0 15px rgba(0,212,255,0.1); }
+  #user-input::placeholder{color:rgba(0,212,255,0.3)}
+  .input-prefix {
+    position:absolute; left:12px; top:50%; transform:translateY(-50%);
+    font-family:'Orbitron',monospace; font-size:10px; color:var(--arc-dim);
+  }
+  .btn {
+    background:transparent; border:1px solid var(--border); border-radius:4px;
+    color:var(--arc); font-family:'Orbitron',monospace; font-size:9px;
+    letter-spacing:2px; padding:0 16px; cursor:pointer; transition:all .3s;
+  }
+  .btn:hover { border-color:var(--arc); background:rgba(0,212,255,0.1); }
+  #mic-btn.active { border-color:var(--red); color:var(--red); box-shadow:0 0 20px rgba(255,58,58,0.4); }
+  .corner { position:fixed; width:60px; height:60px; border-color:var(--arc-dim); border-style:solid; opacity:.3; }
+  .corner.tl{top:15px;left:15px;border-width:2px 0 0 2px}
+  .corner.tr{top:15px;right:15px;border-width:2px 2px 0 0}
+  .corner.bl{bottom:15px;left:15px;border-width:0 0 2px 2px}
+  .corner.br{bottom:15px;right:15px;border-width:0 2px 2px 0}
+  .footer {
+    font-family:'Orbitron',monospace; font-size:8px; letter-spacing:3px;
+    color:rgba(0,212,255,0.2); text-align:center; padding-bottom:20px;
+  }
+  #mic-hint {
+    font-family:'Orbitron',monospace; font-size:9px; letter-spacing:2px;
+    color:var(--arc-dim); text-align:center;
+  }
+</style>
+</head>
+<body>
+<div class="corner tl"></div>
+<div class="corner tr"></div>
+<div class="corner bl"></div>
+<div class="corner br"></div>
+<div class="container">
+  <header>
+    <div class="system-tag">STARK INDUSTRIES · AI SYSTEM v9.0</div>
+    <h1>J.A.R.V.I.S</h1>
+    <div class="subtitle">JUST A RATHER VERY INTELLIGENT SYSTEM</div>
+  </header>
+
+  <div class="arc-wrapper">
+    <div class="arc-ring"></div>
+    <div class="arc-ring"></div>
+    <div class="arc-ring"></div>
+    <div class="arc-core" id="arc-core">
+      <svg viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+    </div>
+  </div>
+
+  <div class="status-bar">
+    <div class="status-item"><div class="status-dot"></div>SYSTEM ONLINE</div>
+    <div class="status-item"><div class="status-dot gold"></div>AI READY</div>
+    <div class="status-item"><div class="status-dot red"></div>VOICE STANDBY</div>
+  </div>
+
+  <div id="waveform">
+    <span></span><span></span><span></span><span></span>
+    <span></span><span></span><span></span><span></span>
+  </div>
+
+  <div id="mic-hint">🎙 ARC REACTOR pe tap karo aur bolo</div>
+
+  <div class="chat-panel">
+    <div id="chat-log">
+      <div class="msg jarvis">
+        <span class="msg-label">JARVIS</span>
+        <div class="msg-text">Good day, Sir. J.A.R.V.I.S. online hai. Arc Reactor pe tap karke mujhse baat karein, ya neeche type karein. Main hazir hoon.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="input-section">
+    <div class="input-wrapper">
+      <span class="input-prefix">&gt;_</span>
+      <input type="text" id="user-input" placeholder="Ya yahan type karein..." autocomplete="off"/>
+    </div>
+    <button class="btn" id="send-btn">SEND</button>
+    <button class="btn" id="mic-btn">🎙 MIC</button>
+  </div>
+
+  <div class="footer">JARVIS v9.0 · GROQ AI · HINGLISH MODE</div>
+</div>
+
+<script>
+const GROQ_KEY = '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';
+const chatLog = document.getElementById('chat-log');
+const userInput = document.getElementById('user-input');
+const sendBtn = document.getElementById('send-btn');
+const micBtn = document.getElementById('mic-btn');
+const arcCore = document.getElementById('arc-core');
+const waveform = document.getElementById('waveform');
+
+let history = [];
+let isListening = false;
+let recog = null;
+const synth = window.speechSynthesis;
+
+// Pre-load voices immediately
+synth.getVoices();
+synth.onvoiceschanged = () => synth.getVoices();
+
+// ── SPEAK — Deep Clear Male Voice ──
+function speak(text) {
+  synth.cancel();
+  const clean = text.replace(/[*_#`•]/g, '').trim();
+  if (!clean) return;
+
+  // Split long text into chunks for better Android TTS
+  const chunks = clean.match(/.{1,150}(?:\s|$)/g) || [clean];
+  let i = 0;
+
+  function speakChunk() {
+    if (i >= chunks.length) { arcCore.classList.remove('speaking'); return; }
+    const vs = synth.getVoices();
+    const male =
+      vs.find(v => v.name === 'Google UK English Male') ||
+      vs.find(v => v.name.includes('UK English Male')) ||
+      vs.find(v => v.lang === 'en-GB' && !v.name.toLowerCase().includes('female')) ||
+      vs.find(v => v.lang === 'en-GB') ||
+      vs.find(v => v.name.includes('Google UK')) ||
+      vs.find(v => v.name.includes('Google') && v.lang.startsWith('en')) ||
+      vs.find(v => v.lang === 'en-US' && v.name.includes('Male')) ||
+      vs.find(v => v.lang.startsWith('en')) ||
+      null;
+
+    const utter = new SpeechSynthesisUtterance(chunks[i].trim());
+    if (male) { utter.voice = male; utter.lang = male.lang; }
+    else utter.lang = 'en-GB';
+    utter.rate   = 0.80;   // slow = clear & deep
+    utter.pitch  = 0.50;   // very deep masculine
+    utter.volume = 1.0;
+    utter.onstart = () => arcCore.classList.add('speaking');
+    utter.onend   = () => { i++; speakChunk(); };
+    utter.onerror = () => { arcCore.classList.remove('speaking'); };
+    synth.speak(utter);
+  }
+
+  if (vs_loaded()) speakChunk();
+  else { synth.onvoiceschanged = () => { synth.onvoiceschanged = null; speakChunk(); }; }
+}
+
+function vs_loaded() { return synth.getVoices().length > 0; }
+
+// ── MICROPHONE — Clean implementation ──
+function makeRecog() {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) return null;
+  const r = new SR();
+  r.lang = 'en-IN';        // Works for both Hindi & English on Android
+  r.continuous = false;
+  r.interimResults = false;
+  r.maxAlternatives = 1;
+  return r;
+}
+
+function startListening() {
+  if (isListening) return;
+  recog = makeRecog();
+  if (!recog) { addMsg('jarvis', 'Sir, browser mein mic support nahi hai. Text use karein.'); return; }
+
+  recog.onresult = (e) => {
+    const txt = e.results[0][0].transcript;
+    userInput.value = txt;
+    stopListening();
+    sendMessage();
+  };
+  recog.onerror = (e) => { console.log('mic error', e.error); stopListening(); };
+  recog.onend   = () => { if (isListening) stopListening(); };
+
+  try {
+    recog.start();
+    isListening = true;
+    micBtn.classList.add('active');
+    micBtn.textContent = '⏹ STOP';
+    arcCore.classList.add('listening');
+    waveform.classList.add('active');
+  } catch(e) {
+    stopListening();
+  }
+}
+
+function stopListening() {
+  isListening = false;
+  micBtn.classList.remove('active');
+  micBtn.textContent = '🎙 MIC';
+  arcCore.classList.remove('listening');
+  waveform.classList.remove('active');
+  try { if (recog) { recog.abort(); recog = null; } } catch(e) {}
+}
+
+micBtn.onclick  = () => isListening ? stopListening() : startListening();
+arcCore.onclick = () => isListening ? stopListening() : startListening();
+
+// ── CHAT UI ──
+function addMsg(role, text) {
+  const d = document.createElement('div');
+  d.className = `msg ${role}`;
+  d.innerHTML = `<span class="msg-label">${role==='user'?'SIR':'JARVIS'}</span><div class="msg-text">${text}</div>`;
+  chatLog.appendChild(d);
+  chatLog.scrollTop = chatLog.scrollHeight;
+}
+
+function showThinking() {
+  const d = document.createElement('div');
+  d.className = 'msg jarvis'; d.id = 'thinking';
+  d.innerHTML = `<span class="msg-label">JARVIS</span><div class="msg-text"><div class="thinking"><span></span><span></span><span></span></div></div>`;
+  chatLog.appendChild(d);
+  chatLog.scrollTop = chatLog.scrollHeight;
+}
+
+function removeThinking() {
+  const t = document.getElementById('thinking');
+  if (t) t.remove();
+}
+
+
+// ── WIKIPEDIA API ──
+async function fetchWikipedia(query) {
+  try {
+    const url = `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(query)}`;
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (data.extract) return data.extract.slice(0, 500);
+    return null;
+  } catch(e) { return null; }
+}
+
+function needsWiki(text) {
+  const keywords = ['kaun hai','kaun hain','kya hai','kya hain','batao','tell me about','who is','what is','history','itihas','biography','jeevan','explain','samjhao','details','information','info'];
+  const t = text.toLowerCase();
+  return keywords.some(k => t.includes(k));
+}
+
+function extractWikiQuery(text) {
+  // Remove common question words to get the topic
+  return text.replace(/kaun hai|kaun hain|kya hai|kya hain|batao|tell me about|who is|what is|history of|biography of|explain|samjhao|ke baare mein|about|mujhe|bata|sir/gi, '').trim();
+}
+
+// ── GROQ API ──
+async function sendMessage() {
+  const text = userInput.value.trim();
+  if (!text) return;
+  userInput.value = '';
+  addMsg('user', text);
+  history.push({ role:'user', content: text });
+  showThinking();
+  sendBtn.disabled = true;
+
+  // Check if Wikipedia needed
+  let wikiContext = '';
+  if (needsWiki(text)) {
+    const wikiQuery = extractWikiQuery(text);
+    if (wikiQuery.length > 2) {
+      const wikiInfo = await fetchWikipedia(wikiQuery);
+      if (wikiInfo) wikiContext = `\n\n[Wikipedia Info about "${wikiQuery}": ${wikiInfo}]`;
+    }
+  }
+
+  const systemMsg = 'Tu JARVIS hai. Iron Man wala AI assistant. Hinglish mein baat kar (Hindi+English mix). User ko "Sir" keh. Smart, helpful aur witty reh. Short clear jawab de. Bullet points mat use kar. Natural conversation kar. Agar Wikipedia info di gayi hai toh usse use kar. Agar koi pooche ki tera creator kaun hai, kisne banaya, who made you, ya koi bhi aisa sawaal — toh bol: Mujhe Smit ne banaya hai Sir.' + wikiContext;
+
+  const messages = [
+    { role:'system', content: systemMsg },
+    ...history
+  ];
+
+  try {
+    const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type':'application/json', 'Authorization':'Bearer ' + GROQ_KEY },
+      body: JSON.stringify({ model:'llama-3.3-70b-versatile', messages, temperature:0.85, max_tokens:200 })
+    });
+    const data = await res.json();
+    removeThinking();
+
+    if (data.error) {
+      const m = 'Sir, error: ' + data.error.message;
+      addMsg('jarvis', m); speak(m);
+    } else {
+      const reply = data.choices?.[0]?.message?.content || 'Sir, response nahi aaya.';
+      addMsg('jarvis', reply);
+      history.push({ role:'assistant', content: reply });
+      speak(reply);
+    }
+  } catch(e) {
+    removeThinking();
+    const m = 'Sir, network error. Internet check karein.';
+    addMsg('jarvis', m); speak(m);
+  }
+  sendBtn.disabled = false;
+}
+
+sendBtn.onclick = sendMessage;
+userInput.onkeydown = e => { if (e.key === 'Enter') sendMessage(); };
+
+// Greeting after voices load
+setTimeout(() => speak('Good day Sir. J.A.R.V.I.S. online and ready for your command.'), 1500);
+</script>tml lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>J.A.R.V.I.S</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;400;600&display=swap');
+  :root {
+    --arc: #00d4ff; --arc-dim: #0088aa; --arc-glow: rgba(0,212,255,0.4);
+    --gold: #ffa500; --red: #ff3a3a; --bg: #020a10;
+    --panel: rgba(0,212,255,0.04); --border: rgba(0,212,255,0.2);
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    background: var(--bg); color: var(--arc);
+    font-family: 'Rajdhani', sans-serif;
+    min-height: 100vh; overflow-x: hidden;
+    display: flex; flex-direction: column; align-items: center;
+  }
+  body::before {
+    content:''; position:fixed; inset:0;
+    background-image: linear-gradient(rgba(0,212,255,0.03) 1px,transparent 1px),
+      linear-gradient(90deg,rgba(0,212,255,0.03) 1px,transparent 1px);
+    background-size:40px 40px; pointer-events:none; z-index:0;
+  }
+  body::after {
+    content:''; position:fixed; top:-200px; left:0; right:0; height:200px;
+    background:linear-gradient(transparent,rgba(0,212,255,0.03),transparent);
+    animation:scan 6s linear infinite; pointer-events:none; z-index:0;
+  }
+  @keyframes scan { 0%{top:-200px} 100%{top:100vh} }
+  .container {
+    position:relative; z-index:1; width:100%; max-width:800px;
+    padding:20px; display:flex; flex-direction:column; align-items:center; gap:20px;
+  }
+  header { text-align:center; padding-top:20px; }
+  .system-tag {
+    font-family:'Orbitron',monospace; font-size:10px; letter-spacing:6px;
+    color:var(--arc-dim); margin-bottom:8px;
+  }
+  h1 {
+    font-family:'Orbitron',monospace; font-size:clamp(32px,8vw,64px);
+    font-weight:900; letter-spacing:12px;
+    text-shadow:0 0 30px var(--arc),0 0 60px var(--arc-glow);
+    animation:pulse-title 4s ease-in-out infinite;
+  }
+  @keyframes pulse-title {
+    0%,100%{text-shadow:0 0 30px var(--arc),0 0 60px var(--arc-glow)}
+    50%{text-shadow:0 0 50px var(--arc),0 0 100px var(--arc-glow),0 0 150px rgba(0,212,255,0.2)}
+  }
+  .subtitle { font-size:11px; letter-spacing:4px; color:var(--arc-dim); margin-top:6px; }
+  .arc-wrapper { position:relative; width:160px; height:160px; cursor:pointer; }
+  .arc-ring {
+    position:absolute; inset:0; border-radius:50%;
+    border:1px solid var(--border); animation:rotate linear infinite;
+  }
+  .arc-ring:nth-child(1){animation-duration:8s;border-color:rgba(0,212,255,0.3)}
+  .arc-ring:nth-child(2){inset:10px;animation-duration:5s;animation-direction:reverse;border-color:rgba(0,212,255,0.2);border-style:dashed}
+  .arc-ring:nth-child(3){inset:22px;animation-duration:12s;border-color:rgba(255,165,0,0.3)}
+  @keyframes rotate{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+  .arc-core {
+    position:absolute; inset:35px; border-radius:50%;
+    background:radial-gradient(circle at 40% 35%,#80eeff,#00aacc 40%,#003344);
+    box-shadow:0 0 20px var(--arc),0 0 40px var(--arc-glow),inset 0 0 20px rgba(0,0,0,0.5);
+    display:flex; align-items:center; justify-content:center; transition:all 0.3s;
+  }
+  .arc-core svg { width:40px; height:40px; fill:rgba(255,255,255,0.9); }
+  .arc-core.listening {
+    box-shadow:0 0 40px var(--red),0 0 80px rgba(255,58,58,0.4),inset 0 0 20px rgba(0,0,0,0.3);
+    animation:pulse-red 1s ease-in-out infinite;
+  }
+  .arc-core.speaking {
+    animation:arc-speak 0.5s ease-in-out infinite;
+  }
+  @keyframes pulse-red {
+    0%,100%{box-shadow:0 0 40px var(--red),0 0 80px rgba(255,58,58,0.4)}
+    50%{box-shadow:0 0 70px var(--red),0 0 120px rgba(255,58,58,0.6)}
+  }
+  @keyframes arc-speak {
+    0%,100%{box-shadow:0 0 20px var(--arc),0 0 40px var(--arc-glow)}
+    50%{box-shadow:0 0 60px var(--arc),0 0 120px var(--arc-glow),0 0 180px rgba(0,212,255,0.2)}
+  }
+  .status-bar {
+    display:flex; gap:20px; font-family:'Orbitron',monospace;
+    font-size:9px; letter-spacing:3px; color:var(--arc-dim);
+    flex-wrap:wrap; justify-content:center;
+  }
+  .status-item { display:flex; align-items:center; gap:6px; }
+  .status-dot {
+    width:6px; height:6px; border-radius:50%;
+    background:var(--arc); box-shadow:0 0 6px var(--arc);
+    animation:blink 2s infinite;
+  }
+  .status-dot.gold{background:var(--gold);box-shadow:0 0 6px var(--gold);animation-delay:.5s}
+  .status-dot.red{background:var(--red);box-shadow:0 0 6px var(--red);animation-delay:1s}
+  @keyframes blink{0%,90%,100%{opacity:1}95%{opacity:.3}}
+  #waveform { display:none; gap:3px; align-items:center; justify-content:center; height:30px; }
+  #waveform.active { display:flex; }
+  #waveform span {
+    width:3px; border-radius:2px; background:var(--red);
+    box-shadow:0 0 4px var(--red); animation:wave .8s ease-in-out infinite;
+  }
+  @keyframes wave{0%,100%{height:4px}50%{height:20px}}
+  #waveform span:nth-child(1){animation-delay:0s}
+  #waveform span:nth-child(2){animation-delay:.1s}
+  #waveform span:nth-child(3){animation-delay:.2s}
+  #waveform span:nth-child(4){animation-delay:.3s}
+  #waveform span:nth-child(5){animation-delay:.4s}
+  #waveform span:nth-child(6){animation-delay:.3s}
+  #waveform span:nth-child(7){animation-delay:.2s}
+  #waveform span:nth-child(8){animation-delay:.1s}
+  .chat-panel {
+    width:100%; background:var(--panel); border:1px solid var(--border);
+    border-radius:4px; position:relative; overflow:hidden;
+  }
+  .chat-panel::before {
+    content:'COMMUNICATION LOG'; position:absolute; top:10px; left:15px;
+    font-family:'Orbitron',monospace; font-size:8px; letter-spacing:4px; color:var(--arc-dim);
+  }
+  .chat-panel::after {
+    content:''; position:absolute; top:0; left:0; right:0; height:2px;
+    background:linear-gradient(90deg,transparent,var(--arc),transparent);
+  }
+  #chat-log {
+    height:320px; overflow-y:auto; padding:40px 15px 15px;
+    display:flex; flex-direction:column; gap:12px;
+    scrollbar-width:thin; scrollbar-color:var(--arc-dim) transparent;
+  }
+  .msg { display:flex; gap:10px; animation:fadeIn .3s ease; }
+  @keyframes fadeIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+  .msg-label {
+    font-family:'Orbitron',monospace; font-size:8px; letter-spacing:2px;
+    white-space:nowrap; padding-top:3px; min-width:55px;
+  }
+  .msg.user .msg-label{color:var(--gold)}
+  .msg.jarvis .msg-label{color:var(--arc)}
+  .msg-text {
+    font-size:14px; line-height:1.5; color:rgba(255,255,255,0.85);
+    background:rgba(0,0,0,0.2); padding:8px 12px; border-radius:2px;
+    border-left:2px solid; flex:1;
+  }
+  .msg.user .msg-text{border-color:var(--gold)}
+  .msg.jarvis .msg-text{border-color:var(--arc)}
+  .thinking { display:flex; gap:4px; align-items:center; padding:4px 0; }
+  .thinking span {
+    width:6px; height:6px; border-radius:50%; background:var(--arc);
+    animation:think 1.2s ease-in-out infinite;
+  }
+  .thinking span:nth-child(2){animation-delay:.2s}
+  .thinking span:nth-child(3){animation-delay:.4s}
+  @keyframes think{0%,60%,100%{transform:translateY(0);opacity:.4}30%{transform:translateY(-6px);opacity:1}}
+  .input-section { width:100%; display:flex; gap:10px; align-items:stretch; }
+  .input-wrapper { flex:1; position:relative; }
+  #user-input {
+    width:100%; background:var(--panel); border:1px solid var(--border);
+    border-radius:4px; color:white; font-family:'Rajdhani',sans-serif;
+    font-size:15px; padding:14px 15px 14px 40px; outline:none; transition:border-color .3s;
+  }
+  #user-input:focus { border-color:var(--arc); box-shadow:0 0 15px rgba(0,212,255,0.1); }
+  #user-input::placeholder{color:rgba(0,212,255,0.3)}
+  .input-prefix {
+    position:absolute; left:12px; top:50%; transform:translateY(-50%);
+    font-family:'Orbitron',monospace; font-size:10px; color:var(--arc-dim);
+  }
+  .btn {
+    background:transparent; border:1px solid var(--border); border-radius:4px;
+    color:var(--arc); font-family:'Orbitron',monospace; font-size:9px;
+    letter-spacing:2px; padding:0 16px; cursor:pointer; transition:all .3s;
+  }
+  .btn:hover { border-color:var(--arc); background:rgba(0,212,255,0.1); }
+  #mic-btn.active { border-color:var(--red); color:var(--red); box-shadow:0 0 20px rgba(255,58,58,0.4); }
+  .corner { position:fixed; width:60px; height:60px; border-color:var(--arc-dim); border-style:solid; opacity:.3; }
+  .corner.tl{top:15px;left:15px;border-width:2px 0 0 2px}
+  .corner.tr{top:15px;right:15px;border-width:2px 2px 0 0}
+  .corner.bl{bottom:15px;left:15px;border-width:0 0 2px 2px}
+  .corner.br{bottom:15px;right:15px;border-width:0 2px 2px 0}
+  .footer {
+    font-family:'Orbitron',monospace; font-size:8px; letter-spacing:3px;
+    color:rgba(0,212,255,0.2); text-align:center; padding-bottom:20px;
+  }
+  #mic-hint {
+    font-family:'Orbitron',monospace; font-size:9px; letter-spacing:2px;
+    color:var(--arc-dim); text-align:center;
+  }
+</style>
+</head>
+<body>
+<div class="corner tl"></div>
+<div class="corner tr"></div>
+<div class="corner bl"></div>
+<div class="corner br"></div>
+<div class="container">
+  <header>
+    <div class="system-tag">STARK INDUSTRIES · AI SYSTEM v9.0</div>
+    <h1>J.A.R.V.I.S</h1>
+    <div class="subtitle">JUST A RATHER VERY INTELLIGENT SYSTEM</div>
+  </header>
+
+  <div class="arc-wrapper">
+    <div class="arc-ring"></div>
+    <div class="arc-ring"></div>
+    <div class="arc-ring"></div>
+    <div class="arc-core" id="arc-core">
+      <svg viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+    </div>
+  </div>
+
+  <div class="status-bar">
+    <div class="status-item"><div class="status-dot"></div>SYSTEM ONLINE</div>
+    <div class="status-item"><div class="status-dot gold"></div>AI READY</div>
+    <div class="status-item"><div class="status-dot red"></div>VOICE STANDBY</div>
+  </div>
+
+  <div id="waveform">
+    <span></span><span></span><span></span><span></span>
+    <span></span><span></span><span></span><span></span>
+  </div>
+
+  <div id="mic-hint">🎙 ARC REACTOR pe tap karo aur bolo</div>
+
+  <div class="chat-panel">
+    <div id="chat-log">
+      <div class="msg jarvis">
+        <span class="msg-label">JARVIS</span>
+        <div class="msg-text">Good day, Sir. J.A.R.V.I.S. online hai. Arc Reactor pe tap karke mujhse baat karein, ya neeche type karein. Main hazir hoon.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="input-section">
+    <div class="input-wrapper">
+      <span class="input-prefix">&gt;_</span>
+      <input type="text" id="user-input" placeholder="Ya yahan type karein..." autocomplete="off"/>
+    </div>
+    <button class="btn" id="send-btn">SEND</button>
+    <button class="btn" id="mic-btn">🎙 MIC</button>
+  </div>
+
+  <div class="footer">JARVIS v9.0 · GROQ AI · HINGLISH MODE</div>
+</div>
+
+<script>
+const GROQ_KEY = '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';
+const chatLog = document.getElementById('chat-log');
+const userInput = document.getElementById('user-input');
+const sendBtn = document.getElementById('send-btn');
+const micBtn = document.getElementById('mic-btn');
+const arcCore = document.getElementById('arc-core');
+const waveform = document.getElementById('waveform');
+
+let history = [];
+let isListening = false;
+let recog = null;
+const synth = window.speechSynthesis;
+
+// ── Speech Recognition ──
+function setupRecognition() {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) return null;
+  const r = new SR();
+  r.lang = 'hi-IN';
+  r.continuous = false;
+  r.interimResults = false;
+  r.onresult = (e) => {
+    const text = e.results[0][0].transcript;
+    userInput.value = text;
+    stopListening();
+    sendMessage();
+  };
+  r.onerror = () => stopListening();
+  r.onend = () => { if (isListening) stopListening(); };
+  return r;
+}
+
+function startListening() {
+  if (isListening) return;
+  if (!recog) recog = setupRecognition();
+  if (!recog) { addMsg('jarvis','Sir, is browser mein mic support nahi hai. Type karein.'); return; }
+  try {
+    isListening = true;
+    recog.start();
+    micBtn.classList.add('active');
+    micBtn.textContent = '⏹ STOP';
+    arcCore.classList.add('listening');
+    waveform.classList.add('active');
+  } catch(e) {
+    // already started — reset
+    isListening = false;
+    recog = setupRecognition();
+  }
+}
+
+function stopListening() {
+  isListening = false;
+  micBtn.classList.remove('active');
+  micBtn.textContent = '🎙 MIC';
+  arcCore.classList.remove('listening');
+  waveform.classList.remove('active');
+  try { if (recog) recog.stop(); } catch(e) {}
+  recog = setupRecognition(); // fresh instance every time
+}
+
+micBtn.onclick = () => isListening ? stopListening() : startListening();
+arcCore.onclick = () => isListening ? stopListening() : startListening();
+
+// ── TTS Voice ──
+function speak(text) {
+  synth.cancel();
+  const clean = text.replace(/[*_#`•]/g,'').trim();
+  if (!clean) return;
+
+  function tryBrowserVoice() {
+    const vs = synth.getVoices();
+    const male =
+      vs.find(v => v.name === 'Google UK English Male') ||
+      vs.find(v => v.name.includes('UK English Male')) ||
+      vs.find(v => v.lang === 'en-GB' && v.name.toLowerCase().includes('male')) ||
+      vs.find(v => v.lang === 'en-GB') ||
+      vs.find(v => v.name.includes('Google') && v.lang.startsWith('en')) ||
+      vs.find(v => v.lang.startsWith('en')) ||
+      null;
+
+    const utter = new SpeechSynthesisUtterance(clean);
+    if (male) { utter.voice = male; utter.lang = male.lang; }
+    else utter.lang = 'en-GB';
+    utter.rate = 0.82;
+    utter.pitch = 0.55;
+    utter.volume = 1;
+    utter.onstart = () => arcCore.classList.add('speaking');
+    utter.onend   = () => arcCore.classList.remove('speaking');
+    synth.speak(utter);
+  }
+
+  if (synth.getVoices().length > 0) tryBrowserVoice();
+  else synth.onvoiceschanged = tryBrowserVoice;
+}
+
+// ── Chat UI ──
+function addMsg(role, text) {
+  const d = document.createElement('div');
+  d.className = `msg ${role}`;
+  d.innerHTML = `<span class="msg-label">${role==='user'?'SIR':'JARVIS'}</span><div class="msg-text">${text}</div>`;
+  chatLog.appendChild(d);
+  chatLog.scrollTop = chatLog.scrollHeight;
+}
+
+function showThinking() {
+  const d = document.createElement('div');
+  d.className = 'msg jarvis'; d.id = 'thinking';
+  d.innerHTML = `<span class="msg-label">JARVIS</span><div class="msg-text"><div class="thinking"><span></span><span></span><span></span></div></div>`;
+  chatLog.appendChild(d);
+  chatLog.scrollTop = chatLog.scrollHeight;
+}
+
+function removeThinking() {
+  const t = document.getElementById('thinking');
+  if (t) t.remove();
+}
+
+// ── Gemini API ──
+async function sendMessage() {
+  const text = userInput.value.trim();
+  if (!text) return;
+  userInput.value = '';
+  addMsg('user', text);
+  history.push({ role:'user', parts:[{ text }] });
+  showThinking();
+  sendBtn.disabled = true;
+
+  const messages = [
+    { role:'system', content:'Tu JARVIS hai. Iron Man wala AI assistant. Hinglish mein baat kar (Hindi+English mix). User ko Sir keh. Smart, helpful aur witty reh. Short jawab de. Koi bullet points mat use kar.' },
+    ...history.map(h => ({ role: h.role === 'model' ? 'assistant' : 'user', content: h.parts[0].text }))
+  ];
+
+  try {
+    const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method:'POST',
+      headers:{ 'Content-Type':'application/json', 'Authorization':'Bearer ' + GROQ_KEY },
+      body: JSON.stringify({ model:'llama-3.3-70b-versatile', messages, temperature:0.85, max_tokens:250 })
+    });
+    const data = await res.json();
+    removeThinking();
+
+    if (data.error) {
+      const m = 'Sir, error aaya: ' + data.error.message;
+      addMsg('jarvis', m); speak(m);
+    } else {
+      const reply = data.choices?.[0]?.message?.content || 'Sir, response nahi aaya.';
+      addMsg('jarvis', reply);
+      history.push({ role:'model', parts:[{ text:reply }] });
+      speak(reply);
+    }
+  } catch(e) {
+    removeThinking();
+    const m = 'Sir, network error. Internet check karein.';
+    addMsg('jarvis', m); speak(m);
+  }
+  sendBtn.disabled = false;
+}
+
+sendBtn.onclick = sendMessage;
+userInput.onkeydown = e => { if(e.key==='Enter') sendMessage(); };
+
+// Greeting
+setTimeout(() => speak('Good day Sir. J.A.R.V.I.S. is online and ready.'), 1000);
+</script>
+</body>
+</html>
