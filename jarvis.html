@@ -1,0 +1,767 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>J.A.R.V.I.S</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Bebas+Neue&family=Rajdhani:wght@300;500;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --c1: #ff2d55;
+  --c2: #ff6b00;
+  --c3: #ff0000;
+  --bg: #030508;
+  --panel: rgba(255,45,85,0.03);
+  --border: rgba(255,45,85,0.2);
+  --text: rgba(255,255,255,0.88);
+}
+
+* { margin:0; padding:0; box-sizing:border-box; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Rajdhani', sans-serif;
+  min-height: 100vh;
+  overflow-x: hidden;
+  cursor: crosshair;
+}
+
+/* ── MATRIX RAIN CANVAS ── */
+#matrix {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  opacity: 0.04;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ── GRID OVERLAY ── */
+.grid-bg {
+  position: fixed;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(255,45,85,0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,45,85,0.04) 1px, transparent 1px);
+  background-size: 60px 60px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ── SCANLINE ── */
+.scanline {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, transparent, #ff2d55, transparent);
+  animation: scandown 4s linear infinite;
+  pointer-events: none;
+  z-index: 100;
+  opacity: 0.6;
+}
+@keyframes scandown { 0%{top:-3px} 100%{top:100vh} }
+
+/* ── CORNER BRACKETS ── */
+.bracket {
+  position: fixed;
+  width: 50px; height: 50px;
+  border-color: #ff2d55;
+  border-style: solid;
+  opacity: 0.4;
+  z-index: 10;
+}
+.bracket.tl { top:12px; left:12px; border-width:2px 0 0 2px; }
+.bracket.tr { top:12px; right:12px; border-width:2px 2px 0 0; }
+.bracket.bl { bottom:12px; left:12px; border-width:0 0 2px 2px; }
+.bracket.br { bottom:12px; right:12px; border-width:0 2px 2px 0; }
+
+/* ── MAIN LAYOUT ── */
+.shell {
+  position: relative;
+  z-index: 1;
+  max-width: 780px;
+  margin: 0 auto;
+  padding: 24px 16px 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+/* ── HEADER ── */
+.hdr {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding-top: 16px;
+}
+
+.hdr-tag {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 6px;
+  color: var(--c1);
+  opacity: 0.5;
+}
+
+.hdr h1 {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: clamp(28px, 7vw, 56px);
+  letter-spacing: 6px;
+  color: #ff2d55;
+  text-shadow:
+    0 0 10px #ff2d55,
+    0 0 30px rgba(255,45,85,0.8),
+    0 0 70px rgba(255,45,85,0.4),
+    0 0 120px rgba(255,45,85,0.2),
+    3px 3px 0px rgba(139,0,0,0.6);
+  animation: flicker 6s infinite;
+  line-height: 1;
+  position: relative;
+  z-index: 2;
+  white-space: nowrap;
+  padding: 6px 16px;
+  border: 1px solid rgba(255,45,85,0.3);
+  background: rgba(255,45,85,0.04);
+  box-shadow: 0 0 30px rgba(255,45,85,0.15), inset 0 0 30px rgba(255,45,85,0.05);
+}
+
+@keyframes flicker {
+  0%,95%,100%{opacity:1}
+  96%{opacity:0.7}
+  97%{opacity:1}
+  98%{opacity:0.4}
+  99%{opacity:1}
+}
+
+.title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  width: 100%;
+  justify-content: center;
+  padding: 8px 16px;
+}
+
+.title-line-left, .title-line-right {
+  display: none;
+}
+
+.hdr-sub {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 4px;
+  color: rgba(0,255,231,0.4);
+}
+
+/* ── STATS ROW ── */
+.stats {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.stat {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 8px;
+  letter-spacing: 2px;
+  color: rgba(0,255,231,0.5);
+  border: 1px solid rgba(0,255,231,0.1);
+  padding: 4px 10px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.stat-dot {
+  width: 5px; height: 5px;
+  border-radius: 50%;
+  background: var(--c1);
+  box-shadow: 0 0 6px var(--c1);
+  animation: pulse-dot 2s infinite;
+}
+.stat-dot.r { background:var(--c2); box-shadow:0 0 6px var(--c2); animation-delay:.5s; }
+.stat-dot.y { background:var(--c3); box-shadow:0 0 6px var(--c3); animation-delay:1s; }
+@keyframes pulse-dot { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+/* ── ARC REACTOR ── */
+.arc-zone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.arc-outer {
+  position: relative;
+  width: 140px;
+  height: 140px;
+  cursor: pointer;
+}
+
+.arc-ring {
+  position: absolute;
+  border-radius: 50%;
+  border: 1px solid;
+  animation: spin linear infinite;
+}
+
+.arc-ring:nth-child(1) {
+  inset: 0;
+  border-color: rgba(255,45,85,0.4);
+  animation-duration: 10s;
+}
+.arc-ring:nth-child(2) {
+  inset: 12px;
+  border-color: rgba(255,107,0,0.3);
+  border-style: dashed;
+  animation-duration: 6s;
+  animation-direction: reverse;
+}
+.arc-ring:nth-child(3) {
+  inset: 24px;
+  border-color: rgba(255,0,0,0.2);
+  animation-duration: 15s;
+}
+@keyframes spin { to { transform:rotate(360deg); } }
+
+.arc-core {
+  position: absolute;
+  inset: 36px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #ff8fa3, #ff2d55 35%, #1a0008);
+  box-shadow: 0 0 24px var(--c1), 0 0 60px rgba(255,45,85,0.3), inset 0 0 24px rgba(0,0,0,0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s;
+}
+
+.arc-core.listening {
+  background: radial-gradient(circle at 35% 30%, #ffcc80, #ff6b00 35%, #1a0800) !important;
+  box-shadow: 0 0 30px #ff6b00, 0 0 70px rgba(255,107,0,0.4) !important;
+  animation: arc-pulse-red 0.8s infinite !important;
+}
+
+.arc-core.speaking {
+  animation: arc-pulse 0.4s ease-in-out infinite;
+}
+
+@keyframes arc-pulse {
+  0%,100%{box-shadow:0 0 24px var(--c1),0 0 60px rgba(255,45,85,0.3)}
+  50%{box-shadow:0 0 50px var(--c1),0 0 120px rgba(255,45,85,0.5)}
+}
+@keyframes arc-pulse-red {
+  0%,100%{box-shadow:0 0 30px var(--c2),0 0 70px rgba(255,45,85,0.4)}
+  50%{box-shadow:0 0 60px var(--c2),0 0 140px rgba(255,45,85,0.6)}
+}
+
+.arc-icon {
+  width: 28px; height: 28px;
+  fill: none;
+  stroke: rgba(255,255,255,0.9);
+  stroke-width: 1.5;
+}
+
+/* Orbiting dots */
+.orbit-wrap {
+  position: absolute;
+  inset: -6px;
+  animation: spin 8s linear infinite;
+}
+.orbit-dot {
+  position: absolute;
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  top: 50%; left: 50%;
+}
+.orbit-dot:nth-child(1) { background:#ff2d55; box-shadow:0 0 8px #ff2d55; transform:translate(-50%,-50%) rotate(0deg) translateX(76px); }
+.orbit-dot:nth-child(2) { background:var(--c2); box-shadow:0 0 8px var(--c2); transform:translate(-50%,-50%) rotate(120deg) translateX(76px); }
+.orbit-dot:nth-child(3) { background:var(--c3); box-shadow:0 0 8px var(--c3); transform:translate(-50%,-50%) rotate(240deg) translateX(76px); }
+
+/* ── WAVEFORM ── */
+.wave {
+  display: none;
+  align-items: flex-end;
+  gap: 3px;
+  height: 28px;
+}
+.wave.on { display:flex; }
+.wave span {
+  width: 3px;
+  border-radius: 2px;
+  background: #ff6b00;
+  box-shadow: 0 0 4px #ff6b00;
+  animation: wavebar 0.6s ease-in-out infinite;
+}
+.wave span:nth-child(1){height:8px;animation-delay:0s}
+.wave span:nth-child(2){height:16px;animation-delay:.1s}
+.wave span:nth-child(3){height:24px;animation-delay:.2s}
+.wave span:nth-child(4){height:14px;animation-delay:.3s}
+.wave span:nth-child(5){height:20px;animation-delay:.4s}
+.wave span:nth-child(6){height:10px;animation-delay:.3s}
+.wave span:nth-child(7){height:18px;animation-delay:.2s}
+.wave span:nth-child(8){height:6px;animation-delay:.1s}
+@keyframes wavebar{0%,100%{transform:scaleY(0.4)}50%{transform:scaleY(1)}}
+
+.mic-hint {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 3px;
+  color: rgba(0,255,231,0.35);
+  text-align: center;
+}
+
+/* ── TERMINAL / CHAT ── */
+.terminal {
+  border: 1px solid var(--border);
+  background: var(--panel);
+  position: relative;
+  overflow: hidden;
+}
+
+.terminal::before {
+  content:'';
+  position:absolute;
+  top:0;left:0;right:0;
+  height:1px;
+  background:linear-gradient(90deg,transparent,var(--c1),transparent);
+}
+
+.term-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--border);
+  background: rgba(0,255,231,0.03);
+}
+
+.term-dots { display:flex; gap:5px; }
+.term-dots span {
+  width:8px; height:8px; border-radius:50%;
+}
+.term-dots span:nth-child(1){background:var(--c2)}
+.term-dots span:nth-child(2){background:var(--c3)}
+.term-dots span:nth-child(3){background:#30d158}
+
+.term-title {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 3px;
+  color: rgba(0,255,231,0.4);
+  flex: 1;
+  text-align: center;
+}
+
+/* Coding animation ticker */
+.code-ticker {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 8px;
+  color: rgba(0,255,231,0.25);
+  padding: 4px 14px;
+  border-bottom: 1px solid rgba(0,255,231,0.05);
+  white-space: nowrap;
+  overflow: hidden;
+}
+.code-ticker span {
+  display: inline-block;
+  animation: ticker 20s linear infinite;
+}
+@keyframes ticker {
+  0% { transform: translateX(100%); }
+  100% { transform: translateX(-100%); }
+}
+
+#chat-log {
+  height: 280px;
+  overflow-y: auto;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0,255,231,0.2) transparent;
+}
+
+.msg {
+  display: flex;
+  gap: 10px;
+  animation: msgIn 0.3s ease;
+}
+@keyframes msgIn { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:none} }
+
+.msg-who {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 1px;
+  padding-top: 3px;
+  min-width: 52px;
+  flex-shrink: 0;
+}
+.msg.user .msg-who { color: var(--c3); }
+.msg.jarvis .msg-who { color: var(--c1); }
+
+.msg-body {
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: rgba(255,255,255,0.82);
+  border-left: 1.5px solid;
+  padding-left: 10px;
+  flex: 1;
+}
+.msg.user .msg-body { border-color: var(--c3); }
+.msg.jarvis .msg-body { border-color: #ff2d55; }
+
+/* Thinking dots */
+.think { display:flex; gap:5px; align-items:center; padding:4px 0; }
+.think span {
+  width:6px; height:6px; border-radius:50%;
+  background:var(--c1);
+  animation:thinkdot 1s ease-in-out infinite;
+}
+.think span:nth-child(2){animation-delay:.2s}
+.think span:nth-child(3){animation-delay:.4s}
+@keyframes thinkdot{0%,60%,100%{transform:scale(0.6);opacity:0.3}30%{transform:scale(1);opacity:1}}
+
+/* ── INPUT ── */
+.input-row {
+  display: flex;
+  gap: 8px;
+}
+
+.input-wrap {
+  flex: 1;
+  position: relative;
+  border: 1px solid var(--border);
+  background: rgba(0,255,231,0.02);
+  display: flex;
+  align-items: center;
+}
+
+.input-wrap::before {
+  content: '>';
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 12px;
+  color: var(--c1);
+  padding: 0 10px;
+  opacity: 0.6;
+}
+
+#user-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: white;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 13px;
+  padding: 13px 10px 13px 0;
+  outline: none;
+  caret-color: #ff2d55;
+}
+#user-input::placeholder { color: rgba(0,255,231,0.2); }
+
+.btn {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--c1);
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 2px;
+  padding: 0 14px;
+  cursor: crosshair;
+  transition: all 0.2s;
+  position: relative;
+  overflow: hidden;
+}
+.btn:hover {
+  border-color: #ff2d55;
+  background: rgba(0,255,231,0.08);
+  box-shadow: 0 0 12px rgba(0,255,231,0.15);
+}
+.btn:active { background:rgba(0,255,231,0.15); }
+#mic-btn.active {
+  border-color: var(--c2);
+  color: var(--c2);
+  box-shadow: 0 0 16px rgba(255,45,85,0.3);
+}
+
+/* ── BOTTOM STATUS ── */
+.bottom-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 4px;
+}
+
+.bottom-left {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 8px;
+  letter-spacing: 2px;
+  color: rgba(0,255,231,0.2);
+}
+
+.bottom-right {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 8px;
+  letter-spacing: 2px;
+  color: rgba(255,45,85,0.3);
+}
+
+/* ── LIVE CLOCK ── */
+#clock {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 3px;
+  color: rgba(0,255,231,0.3);
+  text-align: center;
+}
+</style>
+</head>
+<body>
+
+<canvas id="matrix"></canvas>
+<div class="grid-bg"></div>
+<div class="scanline"></div>
+<div class="bracket tl"></div>
+<div class="bracket tr"></div>
+<div class="bracket bl"></div>
+<div class="bracket br"></div>
+
+<div class="shell">
+
+  <!-- HEADER -->
+  <div class="hdr">
+    <div class="hdr-tag">STARK INDUSTRIES · MARK XII · NEURAL INTERFACE</div>
+    <div class="title-wrap">
+      <div class="title-line-left"></div>
+      <h1>J.A.R.V.I.S</h1>
+      <div class="title-line-right"></div>
+    </div>
+    <div class="hdr-sub">JUST A RATHER VERY INTELLIGENT SYSTEM</div>
+    <div id="clock"></div>
+  </div>
+
+  <!-- STATS -->
+  <div class="stats">
+    <div class="stat"><div class="stat-dot"></div>SYS_ONLINE</div>
+    <div class="stat"><div class="stat-dot y"></div>AI_LOADED</div>
+    <div class="stat"><div class="stat-dot r"></div>MIC_READY</div>
+    <div class="stat"><div class="stat-dot"></div>GROQ_v3.3</div>
+  </div>
+
+  <!-- ARC REACTOR -->
+  <div class="arc-zone">
+    <div class="arc-outer" id="arc-outer">
+      <div class="arc-ring"></div>
+      <div class="arc-ring"></div>
+      <div class="arc-ring"></div>
+      <div class="orbit-wrap">
+        <div class="orbit-dot"></div>
+        <div class="orbit-dot"></div>
+        <div class="orbit-dot"></div>
+      </div>
+      <div class="arc-core" id="arc-core">
+        <svg class="arc-icon" viewBox="0 0 24 24">
+          <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+        </svg>
+      </div>
+    </div>
+
+    <div class="wave" id="waveform">
+      <span></span><span></span><span></span><span></span>
+      <span></span><span></span><span></span><span></span>
+    </div>
+
+    <div class="mic-hint" id="mic-hint">[ TAP ARC REACTOR OR MIC TO SPEAK ]</div>
+  </div>
+
+  <!-- TERMINAL -->
+  <div class="terminal">
+    <div class="term-header">
+      <div class="term-dots"><span></span><span></span><span></span></div>
+      <div class="term-title">// COMMUNICATION_LOG.exe</div>
+    </div>
+    <div class="code-ticker">
+      <span>01001010 01000001 01010010 01010110 01001001 01010011 &nbsp;&nbsp; INITIALIZING_NEURAL_NET... &nbsp;&nbsp; STATUS: ONLINE &nbsp;&nbsp; CREATOR: SMIT &nbsp;&nbsp; BUILD: v10.0 &nbsp;&nbsp; GROQ_API: CONNECTED &nbsp;&nbsp; LLAMA3.3_70B: LOADED &nbsp;&nbsp; VOICE: ENABLED &nbsp;&nbsp; 10110010 01001010 01000001</span>
+    </div>
+    <div id="chat-log">
+      <div class="msg jarvis">
+        <span class="msg-who">JARVIS://</span>
+        <div class="msg-body">Systems online, Sir. All neural pathways nominal. Arc Reactor tap karein ya MIC button press karein — main aapki seva ke liye taiyaar hoon.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- INPUT -->
+  <div class="input-row">
+    <div class="input-wrap">
+      <input type="text" id="user-input" placeholder="enter_command..." autocomplete="off"/>
+    </div>
+    <button class="btn" id="send-btn">EXEC</button>
+    <button class="btn" id="mic-btn">🎙 MIC</button>
+  </div>
+
+  <!-- BOTTOM BAR -->
+  <div class="bottom-bar">
+    <div class="bottom-left">BY SMIT // STARK_TECH</div>
+    <div class="bottom-right">CLASSIFIED_LEVEL_5</div>
+  </div>
+
+</div>
+
+<script>
+// ── MATRIX RAIN ──
+const canvas = document.getElementById('matrix');
+const ctx = canvas.getContext('2d');
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
+const cols = Math.floor(canvas.width / 18);
+const drops = Array(cols).fill(1);
+function drawMatrix() {
+  ctx.fillStyle = 'rgba(3,5,8,0.05)';
+  ctx.fillRect(0,0,canvas.width,canvas.height);
+  ctx.fillStyle = '#ff2d55';
+  ctx.font = '13px Share Tech Mono';
+  drops.forEach((y,i) => {
+    const ch = String.fromCharCode(0x30A0 + Math.random()*96);
+    ctx.fillText(ch, i*18, y*18);
+    if (y*18 > canvas.height && Math.random() > 0.975) drops[i] = 0;
+    drops[i]++;
+  });
+}
+setInterval(drawMatrix, 55);
+
+// ── CLOCK ──
+function updateClock() {
+  const now = new Date();
+  document.getElementById('clock').textContent =
+    `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')} // ${now.toDateString().toUpperCase()}`;
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+// ── JARVIS CORE ──
+const GROQ_KEY = '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';
+const chatLog = document.getElementById('chat-log');
+const userInput = document.getElementById('user-input');
+const sendBtn = document.getElementById('send-btn');
+const micBtn = document.getElementById('mic-btn');
+const arcCore = document.getElementById('arc-core');
+const waveform = document.getElementById('waveform');
+const micHint = document.getElementById('mic-hint');
+const synth = window.speechSynthesis;
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+let history = [];
+let isListening = false;
+let recog = null;
+
+synth.getVoices();
+synth.onvoiceschanged = () => synth.getVoices();
+
+function speak(text) {
+  synth.cancel();
+  const clean = text.replace(/[*_#`•]/g,'').trim();
+  if (!clean) return;
+  function go() {
+    const vs = synth.getVoices();
+    const v = vs.find(x => x.lang==='hi-IN') || vs.find(x=>x.lang.startsWith('hi')) || null;
+    const u = new SpeechSynthesisUtterance(clean);
+    if(v){u.voice=v;u.lang='hi-IN';}else u.lang='hi-IN';
+    u.rate=0.88; u.pitch=0.6; u.volume=1;
+    u.onstart=()=>arcCore.classList.add('speaking');
+    u.onend=()=>arcCore.classList.remove('speaking');
+    u.onerror=()=>arcCore.classList.remove('speaking');
+    synth.speak(u);
+  }
+  synth.getVoices().length>0 ? go() : (synth.onvoiceschanged=()=>{synth.onvoiceschanged=null;go();});
+}
+
+function startListen() {
+  if(isListening||!SR) return;
+  if(recog){try{recog.abort();}catch(e){} recog=null;}
+  recog=new SR();
+  recog.lang='hi-IN'; recog.continuous=false; recog.interimResults=false;
+  recog.onresult=(e)=>{const t=e.results[0][0].transcript;stopListen();userInput.value=t;sendMessage();};
+  recog.onerror=()=>stopListen();
+  recog.onend=()=>{if(isListening)stopListen();};
+  try{
+    recog.start(); isListening=true;
+    arcCore.classList.add('listening');
+    waveform.classList.add('on');
+    micBtn.classList.add('active');
+    micBtn.textContent='⏹ STOP';
+    micHint.textContent='[ LISTENING... SPEAK NOW, SIR ]';
+  }catch(e){stopListen();}
+}
+
+function stopListen() {
+  isListening=false;
+  arcCore.classList.remove('listening');
+  waveform.classList.remove('on');
+  micBtn.classList.remove('active');
+  micBtn.textContent='🎙 MIC';
+  micHint.textContent='[ TAP ARC REACTOR OR MIC TO SPEAK ]';
+  try{if(recog){recog.abort();recog=null;}}catch(e){}
+}
+
+micBtn.onclick=()=>isListening?stopListen():startListen();
+arcCore.onclick=()=>isListening?stopListen():startListen();
+
+function addMsg(role,text) {
+  const d=document.createElement('div');
+  d.className=`msg ${role}`;
+  d.innerHTML=`<span class="msg-who">${role==='user'?'SMIT://':'JARVIS://'}</span><div class="msg-body">${text}</div>`;
+  chatLog.appendChild(d);
+  chatLog.scrollTop=chatLog.scrollHeight;
+}
+
+function showThink() {
+  const d=document.createElement('div');
+  d.className='msg jarvis'; d.id='thinking';
+  d.innerHTML=`<span class="msg-who">JARVIS://</span><div class="msg-body"><div class="think"><span></span><span></span><span></span></div></div>`;
+  chatLog.appendChild(d); chatLog.scrollTop=chatLog.scrollHeight;
+}
+function hideThink(){const t=document.getElementById('thinking');if(t)t.remove();}
+
+async function sendMessage() {
+  const text=userInput.value.trim();
+  if(!text) return;
+  userInput.value='';
+  addMsg('user',text);
+  history.push({role:'user',content:text});
+  showThink();
+  sendBtn.disabled=true;
+
+  const sys='Tu JARVIS hai. Iron Man wala AI assistant. Hinglish mein baat kar. User ko Sir keh. Smart aur helpful reh. Short jawab de. Bullet points mat use kar. Creator kaun hai puchhe toh bol: Mujhe Smit ne banaya hai Sir.';
+
+  try {
+    const res=await fetch('https://api.groq.com/openai/v1/chat/completions',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+GROQ_KEY},
+      body:JSON.stringify({model:'llama-3.3-70b-versatile',messages:[{role:'system',content:sys},...history],temperature:0.85,max_tokens:200})
+    });
+    const data=await res.json();
+    hideThink();
+    const reply=data.error?('Error: '+data.error.message):(data.choices?.[0]?.message?.content||'Sir, response nahi aaya.');
+    addMsg('jarvis',reply);
+    history.push({role:'assistant',content:reply});
+    speak(reply);
+  } catch(e) {
+    hideThink();
+    const m='Sir, network error. Internet check karein.';
+    addMsg('jarvis',m); speak(m);
+  }
+  sendBtn.disabled=false;
+}
+
+sendBtn.onclick=sendMessage;
+userInput.onkeydown=e=>{if(e.key==='Enter')sendMessage();};
+
+setTimeout(()=>speak('Good day Sir. J.A.R.V.I.S. online hai. Aapki seva mein hazir hoon.'),1200);
+</script>
+</body>
+</html>
